@@ -1,0 +1,59 @@
+- name: Update & Install
+  hosts: servers
+  become: true
+
+
+  tasks:
+    - name: Prompt for username
+      ansible.builtin.pause:
+        prompt: "Enter a name for the user"
+        echo: yes
+      register: username_prompt
+      tags: create_user
+
+    # 2. Ask for password only if the create_user tag is matched
+    - name: Prompt for password
+      ansible.builtin.pause:
+        prompt: "Enter a password for the user"
+        echo: no  # Hides the password input while typing
+      register: passwd_prompt
+      tags: create_user
+
+    - name: Update
+      ansible.builtin.apt:
+        name: '*'
+      tags: update
+
+
+    - name: Install apache2
+      ansible.builtin.apt:
+        name: apache2
+        state: latest
+      tags: install_apache
+
+    - name: Purge apache2
+      ansible.builtin.apt:
+        name: apache2
+        state: absent
+        purge: true
+        autoremove: yes
+      tags: remove_apache
+
+    - name: Copy index.html file in all nodes from this machine
+      ansible.builtin.copy:
+        src: /home/rushi/project/
+        dest: /var/www/html/
+        mode: '0644'
+        force: yes
+      tags: copy_index
+
+    - name: Create user
+      ansible.builtin.user:
+        name: "{{ username_prompt.user_input }}"
+        groups: sudo
+        password: "{{ passwd_prompt.user_input | ansible.builtin.password_hash('sha512') }}"
+        append: true
+        create_home: yes
+        shell: /bin/bash
+      tags: create_user
+
